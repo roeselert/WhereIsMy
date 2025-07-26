@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#2196F3">
+    <title>WhereIsMy - Photo Location Tracker</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>WhereIsMy</h1>
+            <p>Capture photos with GPS coordinates</p>
+        </header>
+
+        <main>
+            <section class="capture-section">
+                <video id="video" autoplay muted playsinline></video>
+                <canvas id="canvas" style="display: none;"></canvas>
+                
+                <div class="controls">
+                    <button id="captureBtn">📸 Capture Photo</button>
+                    <button id="startCameraBtn" style="display: none;">📷 Start Camera</button>
+                </div>
+
+                <div id="status" class="status"></div>
+            </section>
+
+            <section class="list-section">
+                <h2>Captured Locations</h2>
+                <div id="photoList" class="photo-list">
+                    <p class="empty-state">No photos captured yet</p>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
