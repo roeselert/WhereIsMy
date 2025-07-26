@@ -1,4 +1,5 @@
 const CACHE_NAME = 'whereismy-v1';
+const CACHE_DURATION = 60 * 1000; // 1 minute in milliseconds
 const urlsToCache = [
     '/',
     '/index.html',
@@ -22,9 +23,35 @@ self.addEventListener('fetch', event => {
         caches.match(event.request)
             .then(response => {
                 if (response) {
-                    return response;
+                    const cachedTime = response.headers.get('sw-cache-time');
+                    if (cachedTime && Date.now() - parseInt(cachedTime) < CACHE_DURATION) {
+                        return response;
+                    }
                 }
-                return fetch(event.request);
+                
+                return fetch(event.request)
+                    .then(fetchResponse => {
+                        if (!fetchResponse || fetchResponse.status !== 200 || fetchResponse.type !== 'basic') {
+                            return fetchResponse;
+                        }
+
+                        const responseToCache = fetchResponse.clone();
+                        const headers = new Headers(responseToCache.headers);
+                        headers.set('sw-cache-time', Date.now().toString());
+
+                        const modifiedResponse = new Response(responseToCache.body, {
+                            status: responseToCache.status,
+                            statusText: responseToCache.statusText,
+                            headers: headers
+                        });
+
+                        caches.open(CACHE_NAME)
+                            .then(cache => {
+                                cache.put(event.request, modifiedResponse.clone());
+                            });
+
+                        return modifiedResponse;
+                    });
             })
     );
 });
