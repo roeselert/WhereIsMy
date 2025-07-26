@@ -104,18 +104,22 @@ class WhereIsMyApp {
             
             const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
             
-            // GPS position retrieval disabled
-            // const position = await this.getCurrentPosition();
-            // const coordinates = {
-            //     latitude: position.coords.latitude,
-            //     longitude: position.coords.longitude,
-            //     accuracy: position.coords.accuracy,
-            //     timestamp: position.timestamp
-            // };
+            let coordinates = null;
+            try {
+                const position = await this.getCurrentPosition();
+                coordinates = {
+                    latitude: position.coords.latitude,
+                    longitude: position.coords.longitude,
+                    accuracy: position.coords.accuracy,
+                    timestamp: position.timestamp
+                };
+            } catch (error) {
+                console.warn('Could not get location:', error.message);
+            }
             
             const photoData = {
                 image: imageDataURL,
-                coordinates: null,
+                coordinates: coordinates,
                 timestamp: Date.now(),
                 formattedDate: new Date().toLocaleString()
             };
