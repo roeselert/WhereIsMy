@@ -2,7 +2,7 @@
     "name": "WhereIsMy - Photo Location Tracker",
     "short_name": "WhereIsMy",
     "description": "Capture photos with GPS coordinates and track locations",
-    "start_url": "/",
+    "start_url": "/WhereIsMy/index.html",
     "display": "standalone",
     "background_color": "#667eea",
     "theme_color": "#2196F3",

@@ -64,7 +64,8 @@ class WhereIsMyApp {
 
     async getCurrentPosition() {
         return new Promise((resolve, reject) => {
-            if (!navigator.geolocation) {
+            if(!"geolocation" in navigator) {
+                alert("Geolocation not supported")
                 reject(new Error('Geolocation not supported'));
                 return;
             }
@@ -78,7 +79,7 @@ class WhereIsMyApp {
             navigator.geolocation.getCurrentPosition(
                 position => resolve(position),
                 error => {
-                    console.error('Geolocation error:', error);
+                    alert('Geolocation error: ' + error.code);
                     reject(error);
                 },
                 {
