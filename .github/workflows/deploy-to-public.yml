@@ -1,0 +1,42 @@
+name: Deploy to Public Branch
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: true # 👈 Allows manual triggering from the GitHub UI
+
+jobs:
+  sync-to-public:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Switch to public branch
+        run: |
+          git fetch origin
+          git switch public || git checkout -b public
+
+      - name: Clean branch (except index.html and public folder)
+        run: |
+          find . -mindepth 1 -not -name 'index.html' -not -name 'public' -not -name '.git' -exec rm -rf {} +
+
+      - name: Copy files from main
+        run: |
+          git checkout main -- .
+          git reset HEAD -- .
+          git restore --source=main index.html public
+
+      - name: Commit and push to public
+        run: |
+          git add index.html public
+          git commit -m "Sync from main"
+          git push origin public --force
