@@ -26,7 +26,7 @@ jobs:
 
       - name: Clean branch (except index.html and public folder)
         run: |
-          find . -mindepth 1 -not -name 'index.html' -not -name 'public' -not -name '.git' -exec rm -rf {} +
+          find . -not -name 'index.html' -not -wholename './public/*' -not -wholename './public' -not -wholename './.git' -not -wholename './.git/*' -exec rm -rf {} +
 
       - name: Copy files from main
         run: |
