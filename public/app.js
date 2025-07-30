@@ -1,36 +1,18 @@
 class WhereIsMyApp {
     constructor() {
-        this.db = null;
-        this.stream = null;
+        this.photoRepository = new PhotoRepository();
+        this.positionAdapter = new PositionAdapter();
+        this.cameraAdapter = new CameraAdapter();
         this.initApp();
     }
 
     async initApp() {
-        await this.initDB();
+        await this.photoRepository.init();
         this.setupEventListeners();
         this.loadPhotos();
         this.startCamera();
     }
 
-    async initDB() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open('WhereIsMyDB', 1);
-            
-            request.onerror = () => reject(request.error);
-            request.onsuccess = () => {
-                this.db = request.result;
-                resolve();
-            };
-            
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                if (!db.objectStoreNames.contains('photos')) {
-                    const store = db.createObjectStore('photos', { keyPath: 'id', autoIncrement: true });
-                    store.createIndex('timestamp', 'timestamp', { unique: false });
-                }
-            };
-        });
-    }
 
     setupEventListeners() {
         document.getElementById('captureBtn').addEventListener('click', () => this.capturePhoto());
@@ -40,56 +22,21 @@ class WhereIsMyApp {
     async startCamera() {
         try {
             this.updateStatus('Starting camera...');
-            this.stream = await navigator.mediaDevices.getUserMedia({ 
-                video: { 
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                } 
-            });
+            const stream = await this.cameraAdapter.startCamera();
             
             const video = document.getElementById('video');
-            video.srcObject = this.stream;
+            video.srcObject = stream;
             
             document.getElementById('startCameraBtn').style.display = 'none';
             document.getElementById('captureBtn').style.display = 'block';
             this.updateStatus('Camera ready. Tap capture to take photo.');
         } catch (error) {
-            console.error('Camera error:', error);
-            this.updateStatus('Camera access denied. Please enable camera permissions.');
+            this.updateStatus(error.message);
             document.getElementById('startCameraBtn').style.display = 'block';
             document.getElementById('captureBtn').style.display = 'none';
         }
     }
 
-    async getCurrentPosition() {
-        return new Promise((resolve, reject) => {
-            if(!"geolocation" in navigator) {
-                alert("Geolocation not supported")
-                reject(new Error('Geolocation not supported'));
-                return;
-            }
-
-            // Check if we're on HTTPS or localhost
-            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-                reject(new Error('Geolocation requires HTTPS or localhost'));
-                return;
-            }
-
-            navigator.geolocation.getCurrentPosition(
-                position => resolve(position),
-                error => {
-                    alert('Geolocation error: ' + error.code);
-                    reject(error);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 15000,
-                    maximumAge: 60000
-                }
-            );
-        });
-    }
 
     async capturePhoto() {
         try {
@@ -97,23 +44,12 @@ class WhereIsMyApp {
             
             const video = document.getElementById('video');
             const canvas = document.getElementById('canvas');
-            const ctx = canvas.getContext('2d');
             
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            ctx.drawImage(video, 0, 0);
-            
-            const imageDataURL = canvas.toDataURL('image/jpeg', 0.8);
+            const imageDataURL = this.cameraAdapter.capturePhoto(video, canvas);
             
             let coordinates = null;
             try {
-                const position = await this.getCurrentPosition();
-                coordinates = {
-                    latitude: position.coords.latitude,
-                    longitude: position.coords.longitude,
-                    accuracy: position.coords.accuracy,
-                    timestamp: position.timestamp
-                };
+                coordinates = await this.positionAdapter.getCurrentPosition();
             } catch (error) {
                 console.warn('Could not get location:', error.message);
             }
@@ -125,7 +61,7 @@ class WhereIsMyApp {
                 formattedDate: new Date().toLocaleString()
             };
             
-            await this.savePhoto(photoData);
+            await this.photoRepository.save(photoData);
             this.loadPhotos();
             this.updateStatus('Photo captured!');
             
@@ -135,40 +71,16 @@ class WhereIsMyApp {
         }
     }
 
-    async savePhoto(photoData) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['photos'], 'readwrite');
-            const store = transaction.objectStore('photos');
-            const request = store.add(photoData);
-            
-            request.onsuccess = () => resolve();
-            request.onerror = () => reject(request.error);
-        });
-    }
 
     async loadPhotos() {
         try {
-            const photos = await this.getAllPhotos();
+            const photos = await this.photoRepository.getAll();
             this.displayPhotos(photos);
         } catch (error) {
             console.error('Error loading photos:', error);
         }
     }
 
-    async getAllPhotos() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['photos'], 'readonly');
-            const store = transaction.objectStore('photos');
-            const index = store.index('timestamp');
-            const request = index.getAll();
-            
-            request.onsuccess = () => {
-                const photos = request.result.sort((a, b) => b.timestamp - a.timestamp);
-                resolve(photos);
-            };
-            request.onerror = () => reject(request.error);
-        });
-    }
 
     displayPhotos(photos) {
         const photoList = document.getElementById('photoList');
@@ -218,14 +130,7 @@ class WhereIsMyApp {
         if (!confirm('Delete this photo?')) return;
         
         try {
-            await new Promise((resolve, reject) => {
-                const transaction = this.db.transaction(['photos'], 'readwrite');
-                const store = transaction.objectStore('photos');
-                const request = store.delete(id);
-                
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
+            await this.photoRepository.delete(id);
             
             this.loadPhotos();
             this.updateStatus('Photo deleted');
